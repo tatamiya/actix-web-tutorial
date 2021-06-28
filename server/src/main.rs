@@ -26,5 +26,10 @@ async fn main() {
     srv.resume().await;
     srv.stop(true).await;
 
+    HttpServer::new(|| {
+        App::new().route("/", web::get().to(|| HttpResponse::Ok()))
+    })
+    .workers(4);
+
 }
 
