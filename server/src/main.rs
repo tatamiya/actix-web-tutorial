@@ -3,7 +3,7 @@ use std::sync::mpsc;
 use std::thread;
 
 #[actix_web::main]
-async fn main() {
+async fn main() -> std::io::Result<()> {
     let (tx, rx) = mpsc::channel();
 
     thread::spawn(move || {
@@ -30,6 +30,13 @@ async fn main() {
         App::new().route("/", web::get().to(|| HttpResponse::Ok()))
     })
     .workers(4);
+
+    let one = HttpServer::new(|| {
+        App::new().route("/keep_alive.html", web::get().to(|| HttpResponse::Ok()))
+    })
+    .keep_alive(75);
+
+    one.bind("127.0.0.1:8080")?.run().await
 
 }
 
