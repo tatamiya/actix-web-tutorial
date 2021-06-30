@@ -1,4 +1,4 @@
-use actix_web::{get, web, Result, HttpRequest};
+use actix_web::{error, get, web, Result, HttpRequest, HttpResponse, Responder};
 use serde::Deserialize;
 
 #[get("/users/{user_id}/{friend}")]
@@ -39,17 +39,38 @@ async fn query(info: web::Query<Info2>) -> String {
     format!("Welcome {}!", info.username)
 }
 
+#[get("/json")]
+async fn json(info: web::Json<Info2>) -> Result<String> {
+    Ok(format!("Wolcome {}!", info.username))
+}
+
+async fn json2(info: web::Json<Info2>) -> impl Responder {
+    format!("Welcome {}!", info.username)
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     use actix_web::{App, HttpServer};
 
-    HttpServer::new(||
+    HttpServer::new(|| {
+        let json_config = web::JsonConfig::default()
+            .limit(4096)
+            .error_handler(|err, _req| {
+                error::InternalError::from_response(err, HttpResponse::Conflict().finish()).into()
+            });
+
         App::new()
             .service(index)
             .service(index2)
             .service(index3)
             .service(query)
-    )
+            .service(json)
+            .service(
+                web::resource("/json2")
+                .app_data(json_config)
+                .route(web::post().to(json2)),
+            )
+    })
     .bind("127.0.0.1:8080")?
     .run()
     .await
