@@ -1,5 +1,8 @@
 use actix_web::{error, get, post, web, Result, HttpRequest, HttpResponse, Responder};
 use serde::Deserialize;
+use std::cell::Cell;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 #[get("/users/{user_id}/{friend}")]
 async fn index(web::Path((user_id, friend)): web::Path<(u32, String)>) -> Result<String> {
@@ -58,6 +61,33 @@ async fn form_data(form: web::Form<FormData>) -> Result<String> {
     Ok(format!("Welcome {}!", form.username))
 }
 
+#[derive(Clone)]
+struct AppState {
+    local_count: Cell<usize>,
+    global_count: Arc<AtomicUsize>,
+}
+
+async fn show_count(data: web::Data<AppState>) -> impl Responder {
+    format!(
+        "global_count: {}\nlocal_count: {}",
+        data.global_count.load(Ordering::Relaxed),
+        data.local_count.get()
+    )
+}
+
+async fn add_one(data: web::Data<AppState>) -> impl Responder {
+    data.global_count.fetch_add(1, Ordering::Relaxed);
+
+    let local_count = data.local_count.get();
+    data.local_count.set(local_count + 1);
+
+    format!(
+        "global_count: {}\nlocal_count: {}",
+        data.global_count.load(Ordering::Relaxed),
+        data.local_count.get()
+    )
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     use actix_web::{App, HttpServer};
@@ -68,6 +98,11 @@ async fn main() -> std::io::Result<()> {
             .error_handler(|err, _req| {
                 error::InternalError::from_response(err, HttpResponse::Conflict().finish()).into()
             });
+
+        let data = AppState {
+            local_count: Cell::new(0),
+            global_count: Arc::new(AtomicUsize::new(0)),
+        };
 
         App::new()
             .service(index)
@@ -81,6 +116,9 @@ async fn main() -> std::io::Result<()> {
                 .route(web::post().to(json2)),
             )
             .service(form_data)
+            .data(data.clone())
+            .route("/show_count", web::to(show_count))
+            .route("/add", web::to(add_one))
     })
     .bind("127.0.0.1:8080")?
     .run()
