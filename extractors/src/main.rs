@@ -1,4 +1,4 @@
-use actix_web::{error, get, web, Result, HttpRequest, HttpResponse, Responder};
+use actix_web::{error, get, post, web, Result, HttpRequest, HttpResponse, Responder};
 use serde::Deserialize;
 
 #[get("/users/{user_id}/{friend}")]
@@ -48,6 +48,16 @@ async fn json2(info: web::Json<Info2>) -> impl Responder {
     format!("Welcome {}!", info.username)
 }
 
+#[derive(Deserialize)]
+struct FormData {
+    username: String,
+}
+
+#[post("/form")]
+async fn form_data(form: web::Form<FormData>) -> Result<String> {
+    Ok(format!("Welcome {}!", form.username))
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     use actix_web::{App, HttpServer};
@@ -70,6 +80,7 @@ async fn main() -> std::io::Result<()> {
                 .app_data(json_config)
                 .route(web::post().to(json2)),
             )
+            .service(form_data)
     })
     .bind("127.0.0.1:8080")?
     .run()
