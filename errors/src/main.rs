@@ -1,7 +1,8 @@
 use actix_web::{
-    dev::HttpResponseBuilder, error, get, web, App, Result, HttpRequest, HttpServer, HttpResponse, http::header, http::StatusCode,
+    dev::HttpResponseBuilder, error, get, web, middleware::Logger, App, Result, HttpRequest, HttpServer, HttpResponse, http::header, http::StatusCode,
 };
 use derive_more::{Display, Error};
+use log ::info;
 
 
 #[derive(Debug, Display, Error)]
@@ -83,12 +84,31 @@ impl error::ResponseError for UserError {
     }
 }
 
+#[derive(Debug, Display,   Error)]
+#[display(fmt = "my error: {}", name)]
+pub struct MyErrorForLogging {
+    name: &'static str,
+}
 
+impl error::ResponseError for MyErrorForLogging {}
+
+
+#[get("/logging")]
+async fn logging() -> Result<&'static str, MyErrorForLogging> {
+    let err = MyErrorForLogging {name: "test error"};
+    info!("{}", err);
+    Err(err)
+}
+
+#[rustfmt::skip]
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "info");
+    std::env::set_var("RUST_BACKTRACE", "1");
+    env_logger::init();
 
     HttpServer::new(|| {
-
+        let logger = Logger::default();
 
         App::new()
             .service(
@@ -97,6 +117,8 @@ async fn main() -> std::io::Result<()> {
             )
             .service(override_error_response)
             .service(error_helpers)
+            .wrap(logger)
+            .service(logging)
     })
     .bind("127.0.0.1:8080")?
     .run()
