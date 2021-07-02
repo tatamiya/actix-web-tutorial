@@ -49,6 +49,17 @@ async fn override_error_response() -> Result<&'static str, MyError2> {
     Err(MyError2::BadClientData)
 }
 
+#[derive(Debug)]
+struct MyErrorWithHelper {
+    name: &'static str,
+}
+
+#[get("/error_helpers")]
+async fn error_helpers() -> Result<&'static str> {
+    let result: Result<&'static str, MyErrorWithHelper> = Err(MyErrorWithHelper {name: "test error"});
+    Ok(result.map_err(|e| error::ErrorBadRequest(e.name))?)
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 
@@ -61,6 +72,7 @@ async fn main() -> std::io::Result<()> {
                 .route(web::get().to(custom_error)),
             )
             .service(override_error_response)
+            .service(error_helpers)
     })
     .bind("127.0.0.1:8080")?
     .run()
