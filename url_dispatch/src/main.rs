@@ -1,4 +1,4 @@
-use actix_web::{guard, get, web, App, HttpRequest, HttpResponse, HttpServer, Result};
+use actix_web::{guard, get, web, http::header, App, HttpRequest, HttpResponse, HttpServer, Result};
 use serde::Deserialize;
 
 async fn hello() -> HttpResponse {
@@ -40,6 +40,16 @@ async fn path_info_to_struct(info: web::Path<Info>) -> Result<String> {
     Ok(format!("Welcome {}!", info.username))
 }
 
+#[get("/generate_url")]
+async fn generate_url(req: HttpRequest) -> Result<HttpResponse> {
+    let url = req.url_for("for", &["1", "2", "3"])?;
+
+    Ok(HttpResponse::Found()
+        .header(header::LOCATION, url.as_str())
+        .finish()
+    )
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
@@ -61,6 +71,13 @@ async fn main() -> std::io::Result<()> {
             .service(match_information)
             .service(path_information)
             .service(path_info_to_struct)
+            .service(
+                web::resource("/generate_url/{a}/{b}/{c}")
+                    .name("foo")
+                    .guard(guard::Get())
+                    .to(|| HttpResponse::Ok()),
+            )
+            .service(generate_url)
     })
     .bind("127.0.0.1:8080")?
     .run()
