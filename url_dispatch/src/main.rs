@@ -1,4 +1,4 @@
-use actix_web::{guard, get, web, http::header, App, HttpRequest, HttpResponse, HttpServer, Result, Responder};
+use actix_web::{guard, get, web, middleware, http::header, http::Method, App, HttpRequest, HttpResponse, HttpServer, Result, Responder};
 use serde::Deserialize;
 
 async fn hello() -> HttpResponse {
@@ -58,6 +58,10 @@ async fn external_resource(req: HttpRequest) -> impl Responder {
     url.into_string()
 }
 
+async fn normalize_and_redirect() -> HttpResponse {
+    HttpResponse::Ok().body("Hello")
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
@@ -88,6 +92,8 @@ async fn main() -> std::io::Result<()> {
             .service(generate_url)
             .service(external_resource)
             .external_resource("youtube", "https://youtube.com/watch/{video_id}")
+            .wrap(middleware::NormalizePath::default())
+            .route("/resource/", web::to(normalize_and_redirect))
     })
     .bind("127.0.0.1:8080")?
     .run()
