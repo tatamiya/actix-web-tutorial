@@ -1,4 +1,4 @@
-use actix_web::{guard, get, web, middleware, http::header, http::Method, App, HttpRequest, HttpResponse, HttpServer, Result, Responder};
+use actix_web::{guard, get, web, middleware, http::header, http::Method, dev::RequestHead, App, HttpRequest, HttpResponse, HttpServer, Result, Responder};
 use serde::Deserialize;
 
 async fn hello() -> HttpResponse {
@@ -62,6 +62,14 @@ async fn normalize_and_redirect() -> HttpResponse {
     HttpResponse::Ok().body("Hello")
 }
 
+struct ContentTypeHeader;
+
+impl guard::Guard for ContentTypeHeader {
+    fn check(&self, req: &RequestHead) -> bool {
+        req.headers().contains_key(header::CONTENT_TYPE)
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
@@ -94,6 +102,12 @@ async fn main() -> std::io::Result<()> {
             .external_resource("youtube", "https://youtube.com/watch/{video_id}")
             .wrap(middleware::NormalizePath::default())
             .route("/resource/", web::to(normalize_and_redirect))
+            .route(
+                "/custom_route_guard",
+                web::route()
+                    .guard(ContentTypeHeader)
+                    .to(|| HttpResponse::Ok()),
+            )
     })
     .bind("127.0.0.1:8080")?
     .run()
