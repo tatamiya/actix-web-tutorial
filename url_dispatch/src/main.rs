@@ -1,4 +1,4 @@
-use actix_web::{guard, get, web, http::header, App, HttpRequest, HttpResponse, HttpServer, Result};
+use actix_web::{guard, get, web, http::header, App, HttpRequest, HttpResponse, HttpServer, Result, Responder};
 use serde::Deserialize;
 
 async fn hello() -> HttpResponse {
@@ -50,6 +50,14 @@ async fn generate_url(req: HttpRequest) -> Result<HttpResponse> {
     )
 }
 
+#[get("/external_resource")]
+async fn external_resource(req: HttpRequest) -> impl Responder {
+    let url = req.url_for("youtube", &["oHg5SJYRHA0"]).unwrap();
+    assert_eq!(url.as_str(), "https://youtube.com/watch/oHg5SJYRHA0");
+
+    url.into_string()
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
@@ -78,6 +86,8 @@ async fn main() -> std::io::Result<()> {
                     .to(|| HttpResponse::Ok()),
             )
             .service(generate_url)
+            .service(external_resource)
+            .external_resource("youtube", "https://youtube.com/watch/{video_id}")
     })
     .bind("127.0.0.1:8080")?
     .run()
