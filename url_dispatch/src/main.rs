@@ -1,4 +1,5 @@
 use actix_web::{guard, get, web, App, HttpRequest, HttpResponse, HttpServer, Result};
+use serde::Deserialize;
 
 async fn hello() -> HttpResponse {
     HttpResponse::Ok().body("Hello")
@@ -23,6 +24,22 @@ async fn match_information(req: HttpRequest) -> Result<String> {
     Ok(format!("Values {} {} {} {}", v1, v2, v3, v4))
 }
 
+#[get("/path_information/{username}/{id}/index.html")]
+async fn path_information(info: web::Path<(String, u32)>) -> Result<String> {
+    let info = info.into_inner();
+    Ok(format!("Welcome {}! id: {}", info.0, info.1))
+}
+
+#[derive(Deserialize)]
+struct Info {
+    username: String,
+}
+
+#[get("/path_information/{username}/index.html")]
+async fn path_info_to_struct(info: web::Path<Info>) -> Result<String> {
+    Ok(format!("Welcome {}!", info.username))
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
@@ -42,6 +59,8 @@ async fn main() -> std::io::Result<()> {
                     .service(user_detail)
             )
             .service(match_information)
+            .service(path_information)
+            .service(path_info_to_struct)
     })
     .bind("127.0.0.1:8080")?
     .run()
