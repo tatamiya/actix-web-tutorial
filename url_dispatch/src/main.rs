@@ -108,6 +108,17 @@ async fn main() -> std::io::Result<()> {
                     .guard(ContentTypeHeader)
                     .to(|| HttpResponse::Ok()),
             )
+            .route(
+                "/",
+                web::route()
+                    .guard(guard::Not(guard::Get()))
+                    .to(|| HttpResponse::MethodNotAllowed()),
+            )
+            .default_service(
+                web::route()
+                    .guard(guard::Not(guard::Get()))
+                    .to(|| HttpResponse::MethodNotAllowed()),
+            )
     })
     .bind("127.0.0.1:8080")?
     .run()
