@@ -35,12 +35,23 @@ async fn load_and_deserialize(mut payload: web::Payload) -> Result<HttpResponse,
     Ok(HttpResponse::Ok().json(obj))
 }
 
+#[derive(Deserialize)]
+struct FormData {
+    username: String,
+}
+
+#[post("/url_encoded_body")]
+async fn url_encoded_body(form: web::Form<FormData>) -> HttpResponse {
+    HttpResponse::Ok().body(format!("username: {}", form.username))
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(||
         App::new()
             .route("/json_request", web::post().to(json_request))
             .service(load_and_deserialize)
+            .service(url_encoded_body)
     )
     .bind("127.0.0.1:8080")?
     .run()
