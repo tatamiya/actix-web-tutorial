@@ -1,4 +1,4 @@
-use actix_web::{error, web, post, App, HttpServer, HttpResponse, Result, Error};
+use actix_web::{error, web, get, post, App, HttpServer, HttpResponse, Result, Error};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
@@ -45,6 +45,18 @@ async fn url_encoded_body(form: web::Form<FormData>) -> HttpResponse {
     HttpResponse::Ok().body(format!("username: {}", form.username))
 }
 
+#[get("/streaming_request")]
+async fn streaming_request(mut body: web::Payload) -> Result<HttpResponse> {
+    let mut bytes = web::BytesMut::new();
+    while let Some(item) = body.next().await {
+        let item = item?;
+        println!("Chunk: {:?}", &item);
+        bytes.extend_from_slice(&item);
+    }
+
+    Ok(HttpResponse::Ok().finish())
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(||
@@ -52,6 +64,7 @@ async fn main() -> std::io::Result<()> {
             .route("/json_request", web::post().to(json_request))
             .service(load_and_deserialize)
             .service(url_encoded_body)
+            .service(streaming_request)
     )
     .bind("127.0.0.1:8080")?
     .run()
