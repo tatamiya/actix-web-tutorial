@@ -1,8 +1,9 @@
 use actix_web::{
     dev::BodyEncoding,
-    web, get, middleware, App, HttpResponse, HttpServer,
+    web, get, middleware, App, HttpResponse, HttpServer, Result,
     http::ContentEncoding,
 };
+use serde::{Deserialize, Serialize};
 
 async fn response() -> HttpResponse {
     HttpResponse::Ok()
@@ -32,6 +33,20 @@ async fn gzip() -> HttpResponse {
         .body(GZIP_HELLO_WORLD)
 }
 
+#[derive(Serialize, Deserialize)]
+struct MyObj {
+    name: String,
+}
+
+#[get("/a/{name}")]
+async fn json_response(obj: web::Path<MyObj>) -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(
+        MyObj {
+            name: obj.name.to_string(),
+        }
+    ))
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(||
@@ -40,6 +55,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Compress::default())
             .service(index_br)
             .service(gzip)
+            .service(json_response)
     )
     .bind("127.0.0.1:8080")?
     .run()
