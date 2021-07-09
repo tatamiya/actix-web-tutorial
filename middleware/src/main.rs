@@ -2,7 +2,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use actix_service::{Service, Transform};
-use actix_web::{web, App, dev::ServiceRequest, dev::ServiceResponse};
+use actix_web::{web, App, dev::ServiceRequest, dev::ServiceResponse, Error, HttpServer};
 use futures::future::{ok, Ready, FutureExt};
 use futures::Future;
 
@@ -18,7 +18,7 @@ where
     type Response = ServiceResponse<B>;
     type Error = Error;
     type InitError = ();
-    type Transform = SayHiMddleware<S>;
+    type Transform = SayHiMiddleware<S>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
@@ -30,20 +30,57 @@ pub struct SayHiMiddleware<S> {
     service: S,
 }
 
-#[actix_web::main]
-async fn main() {
-    let app = App::new()
-        .wrap_fn(|req, srv| {
-            println!("Hi from start. You requested: {}", req.path());
-            srv.call(req).map(|res| {
-                println!("Hi from response");
-                res
-            })
+impl<S, B> Service for SayHiMiddleware<S>
+where
+    S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Request = ServiceRequest;
+    type Response = ServiceResponse<B>;
+    type Error = Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.service.poll_ready(cx)
+    }
+
+    fn call(&mut self, req: ServiceRequest) -> Self::Future {
+        println!("Hi from start. You requested: {}", req.path());
+
+        let fut = self.service.call(req);
+
+        Box::pin(async move {
+            let res = fut.await?;
+
+            println!("Hi from response");
+            Ok(res)
         })
-        .route(
-            "/index.html",
-            web::get().to(|| async {
-                "Hello, middleware"
-            }),
-        );
+    }
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+
+    HttpServer::new(||
+        App::new()
+            .wrap(SayHi)
+            .wrap_fn(|req, srv| {
+                println!("Hi from start. You requested: {}", req.path());
+                srv.call(req).map(|res| {
+                    println!("Hi from response");
+                    res
+                })
+            })
+            .route(
+                "/index.html",
+                web::get().to(|| async {
+                    "Hello, middleware"
+                }),
+            )
+
+        )
+        .bind("127.0.0.1:8080")?
+        .run()
+        .await
 }
