@@ -3,6 +3,8 @@ use std::task::{Context, Poll};
 
 use actix_service::{Service, Transform};
 use actix_web::{web, App, dev::ServiceRequest, dev::ServiceResponse, Error, HttpServer};
+use actix_web::middleware::Logger;
+use env_logger::Env;
 use futures::future::{ok, Ready, FutureExt};
 use futures::Future;
 
@@ -62,9 +64,13 @@ where
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
     HttpServer::new(||
         App::new()
             .wrap(SayHi)
+            .wrap(Logger::default())
+            .wrap(Logger::new("%a %{User-Atgent}i"))
             .wrap_fn(|req, srv| {
                 println!("Hi from start. You requested: {}", req.path());
                 srv.call(req).map(|res| {
