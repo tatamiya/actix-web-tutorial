@@ -2,6 +2,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use actix_service::{Service, Transform};
+use actix_session::{CookieSession, Session};
 use actix_web::{http, web, App, dev::ServiceRequest, dev::ServiceResponse, Error, HttpResponse, HttpServer};
 use actix_web::middleware::{Logger, DefaultHeaders};
 use env_logger::Env;
@@ -61,6 +62,19 @@ where
     }
 }
 
+async fn user_session(session: Session) -> Result<HttpResponse, Error> {
+    if let Some(count) = session.get::<i32>("counter")? {
+        session.set("counter", count + 1)?;
+    } else {
+        session.set("counter", 1)?;
+    }
+
+    Ok(HttpResponse::Ok().body(format!(
+        "Count is {:?}!",
+        session.get::<i32>("counter")?.unwrap()
+    )))
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 
@@ -93,7 +107,11 @@ async fn main() -> std::io::Result<()> {
                             .to(|| HttpResponse::MethodNotAllowed()),
                     ),
             )
-
+            .wrap(
+                CookieSession::signed(&[0; 32])
+                    .secure(false),
+            )
+            .service(web::resource("/user_session").to(user_session))
         )
         .bind("127.0.0.1:8080")?
         .run()
