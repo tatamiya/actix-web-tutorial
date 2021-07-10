@@ -2,8 +2,8 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use actix_service::{Service, Transform};
-use actix_web::{web, App, dev::ServiceRequest, dev::ServiceResponse, Error, HttpServer};
-use actix_web::middleware::Logger;
+use actix_web::{http, web, App, dev::ServiceRequest, dev::ServiceResponse, Error, HttpResponse, HttpServer};
+use actix_web::middleware::{Logger, DefaultHeaders};
 use env_logger::Env;
 use futures::future::{ok, Ready, FutureExt};
 use futures::Future;
@@ -83,6 +83,15 @@ async fn main() -> std::io::Result<()> {
                 web::get().to(|| async {
                     "Hello, middleware"
                 }),
+            )
+            .wrap(DefaultHeaders::new().header("X-Version", "0.2"))
+            .service(
+                web::resource("/default_headers")
+                    .route(web::get().to(|| HttpResponse::Ok()))
+                    .route(
+                        web::method(http::Method::HEAD)
+                            .to(|| HttpResponse::MethodNotAllowed()),
+                    ),
             )
 
         )
