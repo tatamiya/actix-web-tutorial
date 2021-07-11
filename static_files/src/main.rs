@@ -1,3 +1,4 @@
+use actix_files as fs;
 use actix_files::NamedFile;
 use actix_web::{HttpRequest, Result};
 use std::path::PathBuf;
@@ -14,6 +15,8 @@ async fn main() -> std::io::Result<()>{
     HttpServer::new(||
         App::new()
             .route("/individual_file/{filename:.*}", web::get().to(individual_file))
+            //.service(fs::Files::new("/static", ".").show_files_listing())
+            .service(fs::Files::new("/static", ".").index_file("index.html"))
     )
     .bind("127.0.0.1:8080")?
     .run()
