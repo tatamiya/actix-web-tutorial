@@ -54,9 +54,32 @@ async fn add_user(
 }
 
 
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "actix_web=info");
+    env_logger::init();
+    dotenv::dotenv().ok();
 
-fn main() {
-    println!("Hello, world!");
+    let connspec = std::env::var("DATABASE_URL").expect("DATABASE_URL");
+    let manager = ConnectionManager::<SqliteConnection>::new(connspec);
+    let pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create bool.");
+
+    let bind = "127.0.0.1:8080";
+
+    println!("Starting server at: {}", &bind);
+
+    HttpServer::new(move || {
+        App::new()
+            .data(pool.clone())
+            .wrap(middleware::Logger::default())
+            .service(get_user)
+            .service(add_user)
+    })
+    .bind(&bind)?
+    .run()
+    .await
 }
 
 
