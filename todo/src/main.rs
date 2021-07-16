@@ -44,6 +44,14 @@ async fn main() -> io::Result<()> {
 
         let session_store = CookieSession::signed(SESSION_SIGNING_KEY).secure(false);
 
+        let error_handlers = ErrorHandlers::new()
+            .handler(
+                http::StatusCode::INTERNAL_SERVER_ERROR,
+                api::internal_server_error,
+            )
+            .handler(http::StatusCode::BAD_REQUEST, api::bad_request)
+            .handler(http::StatusCode::NOT_FOUND, api::not_found);
+
         App::new()
             .data(templates)
             .data(pool.clone())
