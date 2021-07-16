@@ -1,4 +1,3 @@
-use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use serde::Serialize;
 
@@ -21,17 +20,17 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn all(conn: &PgConnection) -> QueryResult<Vec<Task>> {
+    pub fn all(conn: &SqliteConnection) -> QueryResult<Vec<Task>> {
         all_tasks.order(tasks::id.desc()).load::<Task>(conn)
     }
 
-    pub fn insert(todo: NewTask, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn insert(todo: NewTask, conn: &SqliteConnection) -> QueryResult<usize> {
         diesel::insert_into(tasks::table)
             .values(&todo)
             .execute(conn)
     }
 
-    pub fn toggle_with_id(id: i32, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn toggle_with_id(id: i32, conn: &SqliteConnection) -> QueryResult<usize> {
         let task = all_tasks.find(id).get_result::<Task>(conn)?;
 
         let new_status = !task.completed;
@@ -41,7 +40,7 @@ impl Task {
             .execute(conn)
     }
 
-    pub fn delete_with_id(id: i32, conn: PgConnection) -> QueryResult<usize> {
+    pub fn delete_with_id(id: i32, conn: &SqliteConnection) -> QueryResult<usize> {
         diesel::delete(all_tasks.find(id)).execute(conn)
     }
 }
