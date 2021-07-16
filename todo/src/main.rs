@@ -57,6 +57,7 @@ async fn main() -> io::Result<()> {
             .data(pool.clone())
             .wrap(Logger::default())
             .wrap(session_store)
+            .wrap(error_handlers)
             .service(web::resource("/").route(web::get().to(api::index)))
             .service(fs::Files::new("/static", "static/"))
 
