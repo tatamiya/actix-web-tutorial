@@ -54,6 +54,51 @@ pub async fn create(
     }
 }
 
+#[derive(Deserialize)]
+pub struct UpdateParams {
+    id: i32,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateForm {
+    _method: String,
+}
+
+pub async fn update(
+    db: web::Data<db::SqlitePool>,
+    params: web::Path<UpdateParams>,
+    form: web::Form<UpdateForm>,
+    session: Session,
+) -> Result<HttpResponse, Error> {
+    match form._method.as_ref() {
+        "put" => toggle(db, params).await,
+        "delete" => delete(db, params, session).await,
+        unsupported_method => {
+            let msg = format!("Unsupported HTTP method: {}", unsupported_method);
+            Err(error::ErrorBadRequest(msg))
+        }
+    }
+}
+
+async fn toggle(
+    pool: web::Data<db::SqlitePool>,
+    params: web::Path<UpdateParams>,
+) -> Result<HttpResponse, Error> {
+    web::block(move || db::toggle_task(params.id, &pool)).await?;
+    Ok(redirect_to("/"))
+}
+
+async fn delete(
+    pool: web::Data<db::SqlitePool>,
+    params: web::Path<UpdateParams>,
+    session: Session,
+) -> Result<HttpResponse, Error> {
+    web::block(move || db::delete_task(params.id, &pool)).await?;
+    session::set_flash(&session, FlashMessage::success("Task was deleted."))?;
+    Ok(redirect_to("/"))
+}
+
+
 fn redirect_to(location: &str) -> HttpResponse {
     HttpResponse::Found()
         .header(http::header::LOCATION, location)

@@ -60,6 +60,7 @@ async fn main() -> io::Result<()> {
             .wrap(error_handlers)
             .service(web::resource("/").route(web::get().to(api::index)))
             .service(web::resource("/todo").route(web::post().to(api::create)))
+            .service(web::resource("/todo/{id}").route(web::post().to(api::update)))
             .service(fs::Files::new("/static", "static/"))
 
     };
