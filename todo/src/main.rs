@@ -59,6 +59,7 @@ async fn main() -> io::Result<()> {
             .wrap(session_store)
             .wrap(error_handlers)
             .service(web::resource("/").route(web::get().to(api::index)))
+            .service(web::resource("/todo").route(web::post().to(api::create)))
             .service(fs::Files::new("/static", "static/"))
 
     };

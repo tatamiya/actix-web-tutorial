@@ -30,6 +30,36 @@ pub async fn index(
     Ok(HttpResponse::Ok().body(rendered))
 }
 
+#[derive(Deserialize)]
+pub struct CreateForm {
+    description: String,
+}
+
+pub async fn create(
+    params: web::Form<CreateForm>,
+    pool: web::Data<db::SqlitePool>,
+    session: Session,
+) -> Result<HttpResponse, Error> {
+    if params.description.is_empty() {
+        session::set_flash(
+            &session,
+            FlashMessage::error("Description cannot be empty"),
+        )?;
+        Ok(redirect_to("/"))
+    } else {
+        web::block(move || db::create_task(params.into_inner().description, &pool))
+            .await?;
+        session::set_flash(&session, FlashMessage::success("Task successfully added"))?;
+        Ok(redirect_to("/"))
+    }
+}
+
+fn redirect_to(location: &str) -> HttpResponse {
+    HttpResponse::Found()
+        .header(http::header::LOCATION, location)
+        .finish()
+}
+
 pub fn bad_request<B>(res: dev::ServiceResponse<B>) -> Result<ErrorHandlerResponse<B>> {
     let new_resp = NamedFile::open("static/errors/400.html")?
         .set_status_code(res.status())
